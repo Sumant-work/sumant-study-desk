@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <meta name="googlebot" content="noindex,nofollow,noarchive" />
+    <meta name="theme-color" content="#f7fbfb" />
+    <meta name="apple-mobile-web-app-title" content="Study Desk" />
+    <meta name="application-name" content="Sumant Study Desk" />
+    <title>Sumant Study Desk</title>
+    <link rel="manifest" href="site.webmanifest?v=20260615g" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=20260615g" />
+    <link rel="icon" href="assets/icons/favicon.ico?v=20260615g" sizes="any" />
+    <link rel="icon" href="assets/icons/favicon-32.png?v=20260615g" type="image/png" />
+    <link rel="stylesheet" href="styles.css?v=20260615g" />
+  </head>
+  <body>
+    <main>
+      <section class="lock-screen" id="lockedShell">
+        <div class="lock-panel">
+          <div class="lock-identity">
+            <div class="sticker-room">
+              <img src="assets/sumant-kawaii-sticker-cutout.png?v=20260615g" alt="Sumant kawaii sticker" />
+            </div>
+            <div>
+              <p class="eyebrow">Private study desk</p>
+              <h1>Sumant Study Desk</h1>
+              <p class="lead">
+                Enter your password to unlock encrypted study material, trackers, syllabus pages, and downloads.
+              </p>
+            </div>
+          </div>
+          <form id="unlockForm" class="unlock-form">
+            <label for="passwordInput">Password</label>
+            <div class="unlock-row">
+              <input id="passwordInput" type="password" autocomplete="current-password" required />
+              <button id="togglePassword" type="button" class="ghost">Show</button>
+              <button id="unlockButton" type="submit">Unlock</button>
+            </div>
+            <p class="unlock-status" id="unlockStatus" aria-live="polite"></p>
+            <p class="error-text" id="unlockError" role="alert"></p>
+            <p class="tiny-hint">Local use: open on <strong>http://127.0.0.1:4177</strong> (not file URL).</p>
+          </form>
+          <div class="lock-facts">
+            <span id="lockedCount">Encrypted catalog loading...</span>
+            <span>Noindex enabled</span>
+            <span>GitHub-only</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="app-shell" id="appShell" hidden>
+        <header class="topbar">
+            <div class="brand-lockup">
+            <span class="brand-mark" aria-hidden="true">SSD</span>
+            <div>
+              <p class="eyebrow">Unlocked workspace</p>
+              <h1>Sumant Study Desk</h1>
+              <p class="topbar-sub">Encrypted material, faster revision flow, and private progress on this browser.</p>
+              <span class="chip unlock-chip" id="unlockBadge">Locked</span>
+            </div>
+          </div>
+          <div class="top-actions">
+            <button class="ghost" id="exportBackup">Backup JSON</button>
+            <label class="ghost file-button">
+              Import JSON
+              <input id="importBackup" type="file" accept="application/json,.json" hidden />
+            </label>
+            <button class="danger" id="lockAgain">Lock</button>
+          </div>
+        </header>
+
+        <section class="dashboard">
+          <div class="metric">
+            <span>Total items</span>
+            <strong id="totalItems">0</strong>
+          </div>
+          <div class="metric">
+            <span>Saved</span>
+            <strong id="savedItems">0</strong>
+          </div>
+          <div class="metric">
+            <span>Completed</span>
+            <strong id="doneItems">0</strong>
+          </div>
+          <div class="metric wide">
+            <span>Recent</span>
+            <strong id="recentItems">Nothing yet</strong>
+          </div>
+        </section>
+
+        <section class="workspace">
+          <aside class="sidebar">
+            <label class="search-box">
+              Search
+              <input id="searchInput" type="search" placeholder="Subject, tool, syllabus..." />
+            </label>
+            <button class="ghost" id="clearSearch" type="button">Clear Search</button>
+            <div class="category-list" id="categoryList"></div>
+            <section class="category-progress-panel">
+              <h3>Category Progress</h3>
+              <div id="categoryProgress" class="category-progress"></div>
+            </section>
+          </aside>
+
+          <section class="library">
+            <div class="library-head">
+              <div>
+                <h2 id="libraryTitle">All Material</h2>
+                <p id="librarySubtitle">Choose any card to open it securely.</p>
+              </div>
+              <div class="library-controls">
+                <select id="statusFilter" aria-label="Status filter">
+                  <option value="all">All status</option>
+                  <option value="not-started">Not started</option>
+                  <option value="studying">Studying</option>
+                  <option value="done">Done</option>
+                </select>
+                <select id="sortFilter" aria-label="Sort filter">
+                  <option value="priority">Sort: Priority</option>
+                  <option value="recent">Sort: Recent</option>
+                  <option value="alpha">Sort: A-Z</option>
+                  <option value="size">Sort: File Size</option>
+                </select>
+              </div>
+            </div>
+            <div class="smart-actions">
+              <button class="ghost" id="continueLast" type="button">Continue Last</button>
+              <button class="ghost" id="openMedievalSet" type="button">Medieval Set</button>
+              <button class="ghost" id="openRandomPractice" type="button">Random Practice</button>
+              <button class="ghost" id="toggleDensity" type="button">Compact View</button>
+              <button class="ghost" id="resetFilters" type="button">Reset Filters</button>
+            </div>
+            <div class="quick-filters" id="quickFilters">
+              <button type="button" data-quick="all" class="active">All</button>
+              <button type="button" data-quick="practice">Practice</button>
+              <button type="button" data-quick="syllabus">Syllabus</button>
+              <button type="button" data-quick="downloads">Downloads</button>
+              <button type="button" data-quick="saved">Saved</button>
+              <button type="button" data-quick="recent">Recent</button>
+              <button type="button" data-quick="continue">Continue</button>
+            </div>
+            <div class="material-grid" id="materialGrid"></div>
+          </section>
+        </section>
+
+        <section class="viewer" id="viewerPanel" hidden>
+          <div class="viewer-head">
+            <div>
+              <p class="eyebrow" id="viewerMeta">Secure viewer</p>
+              <h2 id="viewerTitle">Material</h2>
+            </div>
+            <div class="viewer-actions">
+              <button class="back-button" id="closeViewer">Back to Library</button>
+              <button class="ghost" id="favoriteActive">Save</button>
+              <button class="ghost" id="fullscreenActive">Full Screen</button>
+              <button class="ghost" id="openPracticeTab">Full Tab</button>
+              <button class="ghost" id="openActiveTab">Open Tab</button>
+              <button class="ghost" id="downloadActive">Download</button>
+            </div>
+          </div>
+          <div class="viewer-body">
+            <iframe id="viewerFrame" title="Study material viewer" allowfullscreen></iframe>
+            <aside class="notes-panel">
+              <label>
+                Status
+                <select id="activeStatus">
+                  <option value="not-started">Not started</option>
+                  <option value="studying">Studying</option>
+                  <option value="done">Done</option>
+                </select>
+              </label>
+              <label>
+                Notes
+                <textarea id="activeNotes" placeholder="Your private browser notes..."></textarea>
+              </label>
+              <p>Progress is saved in this browser. Use Backup JSON to move it to another PC.</p>
+            </aside>
+          </div>
+        </section>
+      </section>
+    </main>
+    <div id="appToast" class="app-toast" hidden></div>
+    <script src="app.js?v=20260615g" type="module"></script>
+  </body>
+</html>
