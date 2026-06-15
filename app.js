@@ -1,5 +1,5 @@
 const STORAGE_KEY = "mission2026-hub-state-v1";
-const APP_VERSION = "20260615g";
+const APP_VERSION = "20260615h";
 const BACKUP_KEYS = [
   STORAGE_KEY,
   "ssc_cgl_topper_growth_tracker_v2",
@@ -68,6 +68,8 @@ let quickFilter = "all";
 let unlocked = false;
 let currentRawKey = null;
 let viewerLoadHintTimer = null;
+let viewerObjectUrl = null;
+let viewerRequestId = 0;
 
 init();
 
@@ -134,13 +136,13 @@ function bindEvents() {
     openFullscreenViewer();
   });
   elements.openPracticeTab.addEventListener("click", () => {
-    if (activeItem) openSecureInTab(activeItem.entryRoute, "practice");
+    if (activeItem) openItemInTab(activeItem, "practice");
   });
   elements.downloadActive.addEventListener("click", () => {
     if (activeItem) downloadItem(activeItem.id);
   });
   elements.openActiveTab.addEventListener("click", () => {
-    if (activeItem) openSecureInTab(activeItem.entryRoute, "material");
+    if (activeItem) openItemInTab(activeItem, "material");
   });
   elements.activeStatus.addEventListener("change", () => {
     if (!activeItem) return;
@@ -473,7 +475,7 @@ function onGridChange(event) {
   renderLibrary();
 }
 
-function openItem(id) {
+async function openItem(id) {
   if (!unlocked) return;
   const item = site.items.find((entry) => entry.id === id);
   if (!item) return;
@@ -484,13 +486,14 @@ function openItem(id) {
   }
 
   activeItem = item;
+  const requestId = ++viewerRequestId;
   state.recent = [id, ...state.recent.filter((value) => value !== id)].slice(0, 8);
   if (!state.status[id]) state.status[id] = "studying";
   saveState();
 
   elements.viewerTitle.textContent = item.title;
   elements.viewerMeta.textContent = `${item.category} / ${item.section || item.type} / ${formatBytes(item.sizeBytes)}`;
-  elements.viewerFrame.src = secureUrl(item.entryRoute);
+  showViewerLoading();
   const practiceLike = isPracticeSet(item);
   elements.openPracticeTab.hidden = !practiceLike;
   clearTimeout(viewerLoadHintTimer);
@@ -509,10 +512,37 @@ function openItem(id) {
   renderStats();
   renderCategoryProgress();
   renderLibrary();
+
+  try {
+    const payload = await decryptItemPayload(item);
+    if (requestId !== viewerRequestId || activeItem?.id !== item.id) {
+      return;
+    }
+    if (isHtmlPayload(payload.file)) {
+      revokeViewerObjectUrl();
+      replaceViewerFrame({ srcdoc: payloadToText(payload.plain) });
+    } else {
+      const blob = payloadToBlob(payload);
+      const objectUrl = URL.createObjectURL(blob);
+      revokeViewerObjectUrl();
+      viewerObjectUrl = objectUrl;
+      replaceViewerFrame({ src: objectUrl });
+    }
+  } catch (error) {
+    if (requestId === viewerRequestId) {
+      replaceViewerFrame({
+        srcdoc: viewerMessageHtml("Could not open this material", "Lock and unlock once, then retry.")
+      });
+      showToast("Open failed. Unlock and retry.");
+    }
+    console.error(error);
+  }
 }
 
 function closeViewer(options = {}) {
-  elements.viewerFrame.src = "about:blank";
+  viewerRequestId += 1;
+  replaceViewerFrame({ src: "about:blank" });
+  revokeViewerObjectUrl();
   elements.viewerPanel.hidden = true;
   activeItem = null;
   document.body.classList.remove("viewer-open");
@@ -537,21 +567,21 @@ function toggleFavorite(id) {
 async function downloadItem(id) {
   const item = site.items.find((entry) => entry.id === id);
   if (!item) return;
-  const response = await fetch(secureUrl(item.entryRoute));
-  if (!response.ok) {
+  try {
+    const blob = await decryptItem(item);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = item.fileName || `${item.id}.bin`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    showToast("Download started.");
+  } catch (error) {
     alert("Download failed. Unlock again and retry.");
     showToast("Download failed. Unlock and retry.");
-    return;
+    console.error(error);
   }
-  const blob = await response.blob();
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = item.fileName || `${item.id}.bin`;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-  showToast("Download started.");
 }
 
 function secureUrl(route) {
@@ -737,6 +767,116 @@ function togglePasswordVisibility() {
   const currentlyHidden = elements.passwordInput.type === "password";
   elements.passwordInput.type = currentlyHidden ? "text" : "password";
   elements.togglePassword.textContent = currentlyHidden ? "Hide" : "Show";
+}
+
+async function openItemInTab(item, mode, options = {}) {
+  try {
+    const payload = await decryptItemPayload(item);
+    const htmlPayload = isHtmlPayload(payload.file);
+    const objectUrl = htmlPayload ? "" : URL.createObjectURL(payloadToBlob(payload));
+    const opened = window.open(htmlPayload ? "" : objectUrl, "_blank");
+    if (!opened) {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (!options.silentBlockedToast) {
+        showToast("Popup blocked by browser. Allow popups for this site.");
+      }
+      return false;
+    }
+    if (htmlPayload) {
+      opened.document.open();
+      opened.document.write(payloadToText(payload.plain));
+      opened.document.close();
+    } else if (objectUrl) {
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    }
+    try {
+      opened.opener = null;
+    } catch {
+      // Ignore if browser disallows setting opener.
+    }
+    if (mode === "practice") {
+      showToast("Practice set opened in full tab.");
+    }
+    return true;
+  } catch (error) {
+    showToast("Open failed. Unlock and retry.");
+    console.error(error);
+    return false;
+  }
+}
+
+function showViewerLoading() {
+  revokeViewerObjectUrl();
+  replaceViewerFrame({
+    srcdoc: viewerMessageHtml("Opening secure material...", "Decrypting inside this browser.")
+  });
+}
+
+function replaceViewerFrame({ src = "", srcdoc = "" } = {}) {
+  const nextFrame = document.createElement("iframe");
+  nextFrame.id = "viewerFrame";
+  nextFrame.title = "Study material viewer";
+  nextFrame.allowFullscreen = true;
+  if (srcdoc) nextFrame.srcdoc = srcdoc;
+  if (src) nextFrame.src = src;
+  elements.viewerFrame.replaceWith(nextFrame);
+  elements.viewerFrame = nextFrame;
+}
+
+function viewerMessageHtml(title, detail) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f8fafc;color:#223047;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    section{text-align:center;padding:24px}
+    h1{font-size:20px;margin:0 0 8px}
+    p{margin:0;color:#64748b}
+  </style></head><body><section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(detail)}</p></section></body></html>`;
+}
+
+function revokeViewerObjectUrl() {
+  if (!viewerObjectUrl) return;
+  URL.revokeObjectURL(viewerObjectUrl);
+  viewerObjectUrl = null;
+}
+
+async function decryptItem(item) {
+  return payloadToBlob(await decryptItemPayload(item));
+}
+
+async function decryptItemPayload(item) {
+  if (!currentRawKey) throw new Error("Unlock key missing.");
+  const file = site.files[item.entryRoute];
+  if (!file) throw new Error(`Secure file missing: ${item.entryRoute}`);
+
+  const response = await fetch(file.blob, { cache: "force-cache" });
+  if (!response.ok) throw new Error(`Encrypted blob missing: ${file.blob}`);
+
+  const key = await crypto.subtle.importKey("raw", currentRawKey, { name: "AES-GCM" }, false, ["decrypt"]);
+  const plain = await decryptEncryptedBytes(new Uint8Array(await response.arrayBuffer()), key);
+  return { file, plain };
+}
+
+function payloadToBlob(payload) {
+  return new Blob([payload.plain], { type: payload.file.mime || "application/octet-stream" });
+}
+
+function payloadToText(plain) {
+  return new TextDecoder().decode(plain);
+}
+
+function isHtmlPayload(file) {
+  return /html/i.test(file.mime || "") || /\.html?$/i.test(file.name || "");
+}
+
+async function decryptEncryptedBytes(bytes, key) {
+  const magic = "M26ENC1\n";
+  const decoder = new TextDecoder();
+  if (decoder.decode(bytes.slice(0, magic.length)) !== magic) {
+    throw new Error("Invalid encrypted file");
+  }
+
+  const iv = bytes.slice(magic.length, magic.length + 12);
+  const payload = bytes.slice(magic.length + 12);
+  return crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, payload);
 }
 
 function openSecureInTab(route, mode, options = {}) {
