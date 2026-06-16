@@ -1,11 +1,5 @@
 const STORAGE_KEY = "mission2026-hub-state-v1";
-const APP_VERSION = "20260615h";
-const BACKUP_KEYS = [
-  STORAGE_KEY,
-  "ssc_cgl_topper_growth_tracker_v2",
-  "tt2-settings",
-  "tt2-logs"
-];
+const APP_VERSION = "20260616a";
 
 const $ = (id) => document.getElementById(id);
 
@@ -51,8 +45,6 @@ const elements = {
   closeViewer: $("closeViewer"),
   activeStatus: $("activeStatus"),
   activeNotes: $("activeNotes"),
-  exportBackup: $("exportBackup"),
-  importBackup: $("importBackup"),
   lockAgain: $("lockAgain"),
   appToast: $("appToast")
 };
@@ -157,8 +149,6 @@ function bindEvents() {
     state.notes[activeItem.id] = elements.activeNotes.value;
     saveState();
   });
-  elements.exportBackup.addEventListener("click", exportBackup);
-  elements.importBackup.addEventListener("change", importBackup);
   elements.lockAgain.addEventListener("click", () => window.location.reload());
   document.addEventListener("keydown", onGlobalKeydown);
   window.addEventListener("popstate", () => {
@@ -599,54 +589,6 @@ function pushViewerHistory(id) {
   } else {
     window.history.replaceState(stateData, "", target);
   }
-}
-
-function exportBackup() {
-  const payload = {
-    app: "Sumant Study Desk",
-    exportedAt: new Date().toISOString(),
-    origin: location.origin,
-    data: {}
-  };
-
-  for (const key of BACKUP_KEYS) {
-    const value = localStorage.getItem(key);
-    if (value !== null) payload.data[key] = value;
-  }
-
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `mission2026-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-}
-
-function importBackup(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const payload = JSON.parse(String(reader.result));
-      if (!payload.data || typeof payload.data !== "object") throw new Error("Invalid backup");
-      for (const [key, value] of Object.entries(payload.data)) {
-        if (BACKUP_KEYS.includes(key) && typeof value === "string") {
-          localStorage.setItem(key, value);
-        }
-      }
-      state = loadState();
-      renderApp();
-      alert("Backup imported.");
-    } catch (error) {
-      alert(`Import failed: ${error.message}`);
-    } finally {
-      event.target.value = "";
-    }
-  };
-  reader.readAsText(file);
 }
 
 function loadState() {

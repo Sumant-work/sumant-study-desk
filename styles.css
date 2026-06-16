@@ -67,8 +67,7 @@ textarea {
   font: inherit;
 }
 
-button,
-.file-button {
+button {
   border: 0;
   border-radius: 10px;
   background: linear-gradient(135deg, #1267c4, #0f766e);
@@ -85,8 +84,7 @@ button,
   transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease, background 180ms ease;
 }
 
-button:hover,
-.file-button:hover {
+button:hover {
   filter: brightness(0.96);
   transform: translateY(-1px);
   box-shadow: 0 14px 28px rgba(20, 105, 200, 0.22);
@@ -367,7 +365,6 @@ textarea:focus {
 }
 
 .top-actions .ghost,
-.top-actions .file-button,
 .top-actions .danger {
   min-height: 38px;
 }
@@ -962,8 +959,7 @@ iframe {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  button,
-  .file-button {
+  button {
     width: 100%;
   }
 
